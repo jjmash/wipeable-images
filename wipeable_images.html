@@ -1,124 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Wipeable Image Demo</title>
+  <meta charset="UTF-8">
+  <title>Juxtapose Slider</title>
   <style>
-    body {
-      background-color: #f5f1e6;
-      font-family: sans-serif;
+    html, body {
       margin: 0;
-      padding: 2rem;
+      padding: 0;
+      background-color: white;
+      background-image:
+        linear-gradient(0deg, rgba(200,200,200,0.2) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(200,200,200,0.2) 1px, transparent 1px);
+      background-size: 40px 40px;
+      font-family: sans-serif;
+      height: 100%;
     }
 
-    .container {
-      max-width: 800px;
-      margin: auto;
-    }
-
-    .image {
-      width: 100%;
-      margin-bottom: 2rem;
-      border: 2px solid #ccc;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-    }
-
-    .wipe-container {
+    .slider-container {
       position: relative;
       width: 100%;
-      height: auto;
+      max-width: 800px;
+      margin: 4rem auto;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      border: 2px solid #ccc;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background: #fff;
+      touch-action: none;
     }
 
-    canvas {
+    .slider-container img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
       width: 100%;
-      height: auto;
-      display: block;
+      object-fit: contain;
+      user-select: none;
+      pointer-events: none;
     }
 
-    .caption {
-      text-align: center;
-      font-size: 0.9rem;
-      color: #333;
-      margin-top: -1rem;
-      margin-bottom: 2rem;
+    .top-image {
+      clip-path: inset(0 50% 0 0);
+      z-index: 2;
+    }
+
+    .handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 4px;
+      background-color: #333;
+      z-index: 3;
+      transform: translateX(-2px);
+      cursor: ew-resize;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Static map -->
-    <img src="map.png" class="image" alt="Map Image" />
 
-    <!-- Wipeable 1 -->
-    <div class="wipe-container">
-      <canvas id="wipeCanvas1"></canvas>
-    </div>
-    <div class="caption">Wipeable Image 1</div>
-
-    <!-- Wipeable 2 -->
-    <div class="wipe-container">
-      <canvas id="wipeCanvas2"></canvas>
-    </div>
-    <div class="caption">Wipeable Image 2</div>
+  <div class="slider-container" id="slider">
+    <img src="wipe_bottom.png" alt="Bottom Image">
+    <img src="wipe_top.png" alt="Top Image" class="top-image" id="topImage">
+    <div class="handle" id="handle"></div>
   </div>
 
   <script>
-    function initWipeCanvas(canvasId, topImageSrc, bottomImageSrc) {
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext("2d");
-      const topImg = new Image();
-      const bottomImg = new Image();
+    const slider = document.getElementById("slider");
+    const topImage = document.getElementById("topImage");
+    const handle = document.getElementById("handle");
 
-      let isDrawing = false;
+    let isDragging = false;
 
-      topImg.src = topImageSrc;
-      bottomImg.src = bottomImageSrc;
-
-      topImg.onload = () => {
-        canvas.width = topImg.width;
-        canvas.height = topImg.height;
-
-        ctx.drawImage(bottomImg, 0, 0);
-        ctx.globalCompositeOperation = "source-over";
-        ctx.drawImage(topImg, 0, 0);
-      };
-
-      canvas.addEventListener("mousedown", () => (isDrawing = true));
-      canvas.addEventListener("mouseup", () => (isDrawing = false));
-      canvas.addEventListener("mousemove", draw);
-
-      canvas.addEventListener("touchstart", () => (isDrawing = true));
-      canvas.addEventListener("touchend", () => (isDrawing = false));
-      canvas.addEventListener("touchmove", drawTouch);
-
-      function draw(e) {
-        if (!isDrawing) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        ctx.globalCompositeOperation = "destination-out";
-        ctx.beginPath();
-        ctx.arc(x, y, 20, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-
-      function drawTouch(e) {
-        if (!isDrawing) return;
-        const rect = canvas.getBoundingClientRect();
-        const touch = e.touches[0];
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-        ctx.globalCompositeOperation = "destination-out";
-        ctx.beginPath();
-        ctx.arc(x, y, 20, 0, 2 * Math.PI);
-        ctx.fill();
-        e.preventDefault();
-      }
+    function updateSlider(x) {
+      const rect = slider.getBoundingClientRect();
+      let pos = Math.min(Math.max(x - rect.left, 0), rect.width);
+      let percentage = (pos / rect.width) * 100;
+      topImage.style.clipPath = `inset(0 ${100 - percentage}% 0 0)`;
+      handle.style.left = `${percentage}%`;
     }
 
-    // Initialize both wipeable canvases
-    initWipeCanvas("wipeCanvas1", "wipe_top.png", "wipe_bottom.png");
-    initWipeCanvas("wipeCanvas2", "wipe_top.png", "wipe_bottom.png");
+    const startDrag = () => { isDragging = true; };
+    const endDrag = () => { isDragging = false; };
+
+    const onMove = e => {
+      if (!isDragging) return;
+      const x = e.touches ? e.touches[0].clientX : e.clientX;
+      updateSlider(x);
+    };
+
+    slider.addEventListener("mousedown", startDrag);
+    slider.addEventListener("touchstart", startDrag);
+    window.addEventListener("mouseup", endDrag);
+    window.addEventListener("touchend", endDrag);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onMove);
+
+    // Initialize at 50%
+    window.addEventListener("load", () => {
+      const rect = slider.getBoundingClientRect();
+      updateSlider(rect.left + rect.width / 2);
+    });
   </script>
 </body>
 </html>
