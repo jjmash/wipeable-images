@@ -43,7 +43,6 @@
       touch-action: none;
       cursor: grab;
       z-index: 1;
-      opacity: 0;
     }
 
     .slider-container img {
@@ -127,9 +126,9 @@
       <div class="spinner"></div>
     </div>
 
-    <div class="slider-container" id="slider">
-      <img src="wipe_bottom.png" alt="Bottom Image" id="bottomImage" onerror="alert('wipe_bottom.png not found')">
-      <img src="wipe_top.png" alt="Top Image" class="top-image" id="topImage" onerror="alert('wipe_top.png not found')">
+    <div class="slider-container" id="slider" style="opacity: 0;">
+      <img src="wipe_bottom.png" alt="Bottom Image" id="bottomImage">
+      <img src="wipe_top.png" alt="Top Image" class="top-image" id="topImage">
       <div class="handle" id="handle"></div>
     </div>
 
@@ -165,33 +164,55 @@
       });
     }
 
-    slider.addEventListener("mousedown", (e) => {
+    function getClientX(event) {
+      return event.touches ? event.touches[0].clientX : event.clientX;
+    }
+
+    function getClientY(event) {
+      return event.touches ? event.touches[0].clientY : event.clientY;
+    }
+
+    function startInteraction(e) {
+      const x = getClientX(e);
+      const y = getClientY(e);
       if (e.target === handle) {
         isDragging = true;
       } else {
         isPanning = true;
-        lastX = e.clientX;
-        lastY = e.clientY;
+        lastX = x;
+        lastY = y;
       }
       e.preventDefault();
-    });
+    }
 
-    window.addEventListener("mouseup", () => {
-      isDragging = false;
-      isPanning = false;
-    });
-
-    window.addEventListener("mousemove", (e) => {
+    function moveInteraction(e) {
+      const x = getClientX(e);
+      const y = getClientY(e);
       if (isDragging) {
-        updateSlider(e.clientX);
+        updateSlider(x);
       } else if (isPanning) {
-        offsetX += e.clientX - lastX;
-        offsetY += e.clientY - lastY;
-        lastX = e.clientX;
-        lastY = e.clientY;
+        offsetX += x - lastX;
+        offsetY += y - lastY;
+        lastX = x;
+        lastY = y;
         applyTransform();
       }
-    });
+      e.preventDefault();
+    }
+
+    function endInteraction() {
+      isDragging = false;
+      isPanning = false;
+    }
+
+    slider.addEventListener("mousedown", startInteraction);
+    slider.addEventListener("touchstart", startInteraction, { passive: false });
+
+    window.addEventListener("mousemove", moveInteraction);
+    window.addEventListener("touchmove", moveInteraction, { passive: false });
+
+    window.addEventListener("mouseup", endInteraction);
+    window.addEventListener("touchend", endInteraction);
 
     slider.addEventListener("wheel", (e) => {
       e.preventDefault();
@@ -219,19 +240,13 @@
     });
 
     function imagesLoaded(callback) {
-      let loaded = 0;
-      [topImage, bottomImage].forEach(img => {
-        if (img.complete) {
-          loaded++;
-          if (loaded === 2) callback();
-        } else {
-          img.onload = () => {
-            loaded++;
-            if (loaded === 2) callback();
-          };
-          img.onerror = () => alert(`Image failed to load: ${img.src}`);
-        }
-      });
+      let count = 0;
+      function check() {
+        count++;
+        if (count === 2) callback();
+      }
+      topImage.onload = check;
+      bottomImage.onload = check;
     }
 
     window.addEventListener("load", () => {
@@ -240,7 +255,6 @@
         slider.style.opacity = "1";
         const rect = slider.getBoundingClientRect();
         updateSlider(rect.left + rect.width / 2);
-        applyTransform();
       });
     });
 
