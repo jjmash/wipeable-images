@@ -23,10 +23,7 @@
 
     .grid-background {
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      inset: 0;
       background-color: white;
       background-image:
         linear-gradient(to right, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
@@ -71,7 +68,7 @@
       background-color: #333;
       z-index: 3;
       transform: translateX(-2px);
-      cursor: ew-resize;
+      touch-action: none;
     }
 
     .loader {
@@ -164,55 +161,67 @@
       });
     }
 
-    function getClientX(event) {
-      return event.touches ? event.touches[0].clientX : event.clientX;
+    function getClientCoord(e) {
+      if (e.touches) return e.touches[0].clientX;
+      return e.clientX;
     }
 
-    function getClientY(event) {
-      return event.touches ? event.touches[0].clientY : event.clientY;
-    }
-
-    function startInteraction(e) {
-      const x = getClientX(e);
-      const y = getClientY(e);
-      if (e.target === handle) {
-        isDragging = true;
-      } else {
-        isPanning = true;
-        lastX = x;
-        lastY = y;
-      }
+    function onHandleStart(e) {
+      isDragging = true;
       e.preventDefault();
     }
 
-    function moveInteraction(e) {
-      const x = getClientX(e);
-      const y = getClientY(e);
+    function onHandleMove(e) {
       if (isDragging) {
-        updateSlider(x);
-      } else if (isPanning) {
+        updateSlider(getClientCoord(e));
+      }
+    }
+
+    function onHandleEnd() {
+      isDragging = false;
+    }
+
+    function onPanStart(e) {
+      if (e.target === handle) return; // skip if handle
+      isPanning = true;
+      lastX = e.touches ? e.touches[0].clientX : e.clientX;
+      lastY = e.touches ? e.touches[0].clientY : e.clientY;
+      e.preventDefault();
+    }
+
+    function onPanMove(e) {
+      if (isPanning) {
+        let x = e.touches ? e.touches[0].clientX : e.clientX;
+        let y = e.touches ? e.touches[0].clientY : e.clientY;
         offsetX += x - lastX;
         offsetY += y - lastY;
         lastX = x;
         lastY = y;
         applyTransform();
       }
-      e.preventDefault();
     }
 
-    function endInteraction() {
-      isDragging = false;
+    function onPanEnd() {
       isPanning = false;
     }
 
-    slider.addEventListener("mousedown", startInteraction);
-    slider.addEventListener("touchstart", startInteraction, { passive: false });
+    handle.addEventListener("mousedown", onHandleStart);
+    handle.addEventListener("touchstart", onHandleStart, { passive: false });
 
-    window.addEventListener("mousemove", moveInteraction);
-    window.addEventListener("touchmove", moveInteraction, { passive: false });
+    window.addEventListener("mousemove", onHandleMove);
+    window.addEventListener("touchmove", onHandleMove, { passive: false });
 
-    window.addEventListener("mouseup", endInteraction);
-    window.addEventListener("touchend", endInteraction);
+    window.addEventListener("mouseup", onHandleEnd);
+    window.addEventListener("touchend", onHandleEnd);
+
+    slider.addEventListener("mousedown", onPanStart);
+    slider.addEventListener("touchstart", onPanStart, { passive: false });
+
+    window.addEventListener("mousemove", onPanMove);
+    window.addEventListener("touchmove", onPanMove, { passive: false });
+
+    window.addEventListener("mouseup", onPanEnd);
+    window.addEventListener("touchend", onPanEnd);
 
     slider.addEventListener("wheel", (e) => {
       e.preventDefault();
